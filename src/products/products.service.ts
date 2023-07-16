@@ -1,69 +1,124 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateProductsDto } from './dto/products.dto';
 import { PrismaService } from './database/PrismaService';
 
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
-  async create(data: CreateProductsDto) {
-    const product = await this.prisma.product.create({
-      data,
-    });
+  logger: Logger;
 
-    return product;
+  constructor(private prisma: PrismaService) {
+    this.logger = new Logger();
+  }
+
+  async create(data: CreateProductsDto) {
+    try {
+      const product = await this.prisma.product.create({
+        data,
+      });
+
+      this.logger.log(JSON.stringify(product));
+      return product;
+    } catch (error) {
+      this.logger.error(error.message);
+      throw error;
+    }
   }
 
   async findAll() {
-    return this.prisma.product.findMany();
+    try {
+      const products = await this.prisma.product.findMany();
+      const productLog = products.map((product) => {
+        return {
+          id: product.id,
+          type: product.type,
+          description: product.description,
+        };
+      });
+      this.logger.log(JSON.stringify(productLog));
+      return products;
+    } catch (error) {
+      this.logger.error(error.message);
+      throw error;
+    }
   }
 
   async findType(type: string) {
-    const productExists = await this.prisma.product.findMany({
-      where: {
-        type,
-      },
-    });
-    if (!productExists) {
-      throw new Error('Product does not exists');
-    }
+    try {
+      const productExists = await this.prisma.product.findMany({
+        where: {
+          type,
+        },
+      });
 
-    return productExists;
+      if (!productExists || productExists.length === 0) {
+        this.logger.warn(`'${type}' Type does not exist`);
+        return null;
+      }
+
+      const logProduct = productExists.map((product) => {
+        return {
+          id: product.id,
+          type: product.type,
+          description: product.description,
+        };
+      });
+
+      this.logger.log(JSON.stringify(logProduct));
+      return productExists;
+    } catch (error) {
+      this.logger.error(error.message);
+      throw error;
+    }
   }
 
   async update(id: string, data: CreateProductsDto) {
-    const productExists = await this.prisma.product.findUnique({
-      where: {
-        id,
-      },
-    });
+    try {
+      const productExists = await this.prisma.product.findUnique({
+        where: {
+          id,
+        },
+      });
 
-    if (!productExists) {
-      throw new Error('Product does not exists');
+      if (!productExists) {
+        this.logger.warn(`'${id}', id does not exist`);
+        return null;
+      }
+
+      this.logger.log(JSON.stringify(productExists));
+      return await this.prisma.product.update({
+        data,
+        where: {
+          id,
+        },
+      });
+    } catch (error) {
+      this.logger.error(error.message);
+      throw error;
     }
-
-    return await this.prisma.product.update({
-      data,
-      where: {
-        id,
-      },
-    });
   }
 
   async delete(id: string) {
-    const productExists = await this.prisma.product.findUnique({
-      where: {
-        id,
-      },
-    });
+    try {
+      const productExists = await this.prisma.product.findUnique({
+        where: {
+          id,
+        },
+      });
 
-    if (!productExists) {
-      throw new Error('Product does not exists');
+      if (!productExists) {
+        this.logger.warn(`Product does not exist`);
+        return null;
+      }
+
+      this.logger.log(JSON.stringify(productExists));
+      return await this.prisma.product.delete({
+        where: {
+          id,
+        },
+      });
+    } catch (error) {
+      this.logger.error(error.message);
+      throw error;
     }
-
-    return await this.prisma.product.delete({
-      where: {
-        id,
-      },
-    });
   }
 }
